@@ -6,6 +6,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, R
 import { LOGO_URL } from "@/lib/brand";
 import {
   calculateACASubsidy,
+  runOptimization,
   FPL_FOR_2026_COVERAGE,
   SUBSIDY_CLIFF_FPL_PERCENTAGE,
   type UserProfile,
@@ -62,40 +63,88 @@ const CLIFF_COST = Math.round(calculateACASubsidy(CLIFF_MAGI, CLIFF_PROFILE).ann
 
 const money0 = (n: number) => `$${Math.round(n).toLocaleString()}`;
 
-const scenarios = [
+/**
+ * Example scenarios.
+ *
+ * Each one carries a real profile, and its headline saving is computed by the
+ * optimizer at render time rather than written by hand. If the engine's rules
+ * change, these numbers change with them — the page cannot claim a saving the
+ * product does not actually produce.
+ *
+ * The households themselves are illustrative. Nobody here is a customer.
+ */
+const SCENARIO_DEFS: {
+  label: string;
+  detail: string;
+  story: string;
+  accentColor: string;
+  profile: UserProfile;
+}[] = [
   {
     label: "Retired at 51",
-    detail: "Single · $1.8M saved · 14 years to Medicare",
+    detail: "Single · 14 years to Medicare",
     story:
-      "Planned withdrawals push MAGI $4,000 past the subsidy cliff, forfeiting the entire $18,000 subsidy. Taking $22,000 from a Roth instead of a traditional IRA keeps MAGI under the line — same spending, same lifestyle.",
-    savings: "$16,400",
+      "Drawing the year's spending straight from a Traditional IRA lands MAGI past 400% of the poverty line, where the credit is zero rather than reduced. Taking most of it from a Roth instead keeps MAGI inside the band — same spending, same lifestyle.",
     accentColor: "#007AFF",
+    profile: {
+      age: 51, filingStatus: "single", householdSize: 1, state: "TX", zipCode: "00000",
+      annualSpending: 66000,
+      accounts: { traditionalIRA: 900000, rothIRA: 400000, brokerage: 500000, brokerageCostBasis: 350000, hsa: 20000 },
+    },
   },
   {
     label: "Still working, planning to leave at 45",
-    detail: "Married · Modeling an 18-year gap",
+    detail: "Married · Modeling a 20-year gap",
     story:
-      "The question isn't this year's withdrawal — it's whether a Roth conversion ladder started now leaves enough accessible basis to draw on later without spiking MAGI through their 50s. Order of operations across two decades.",
-    savings: "$14,800",
+      "For a planner the question isn't only this year. It's whether a conversion ladder started early leaves enough accessible basis to draw on through their 50s without pushing MAGI over the line. The saving below is what the first retired year looks like.",
     accentColor: "#A855F7",
+    profile: {
+      age: 45, filingStatus: "married", householdSize: 2, state: "CO", zipCode: "00000",
+      annualSpending: 88000,
+      accounts: { traditionalIRA: 700000, rothIRA: 300000, brokerage: 600000, brokerageCostBasis: 420000, hsa: 25000 },
+    },
   },
   {
     label: "Retired at 45, both partners",
     detail: "Married · 18 years to Medicare",
     story:
-      "Healthcare costs compound over two decades, so each year's conversion amount has to clear taxable income for the year without pushing past the FPL threshold that governs the subsidy.",
-    savings: "$14,800",
+      "Two decades of premiums compound, so the mix matters every single year. Brokerage sales help because only the gain counts toward MAGI — the return of cost basis is invisible to it.",
     accentColor: "#06B6D4",
+    profile: {
+      age: 47, filingStatus: "married", householdSize: 2, state: "CO", zipCode: "00000",
+      annualSpending: 90000,
+      accounts: { traditionalIRA: 800000, rothIRA: 350000, brokerage: 700000, brokerageCostBasis: 490000, hsa: 25000 },
+    },
   },
   {
     label: "Sold a business, retired at 58",
     detail: "Married · 7 years to Medicare",
     story:
-      "Straight IRA distributions are the default advice and the expensive one. Blending taxable account sales with partial IRA withdrawals holds MAGI right at 300% FPL, where the subsidy is still substantial.",
-    savings: "$12,000",
+      "Straight IRA distributions are the default advice and the expensive one. Benchmark premiums are highest in the years just before Medicare, which is exactly why losing the credit costs the most here.",
     accentColor: "#10B981",
+    profile: {
+      age: 58, filingStatus: "married", householdSize: 2, state: "TN", zipCode: "00000",
+      annualSpending: 92000,
+      accounts: { traditionalIRA: 1200000, rothIRA: 200000, brokerage: 900000, brokerageCostBasis: 600000, hsa: 30000 },
+    },
   },
 ];
+
+const scenarios = SCENARIO_DEFS.map((def) => {
+  const result = runOptimization(def.profile);
+  return {
+    ...def,
+    savings: money0(result.annualSavings),
+    naiveFpl: Math.round(result.naive.subsidy.fplPercentage),
+    optimizedFpl: Math.round(result.optimized.subsidy.fplPercentage),
+    losesSubsidy: !result.naive.subsidy.subsidyEligible,
+  };
+});
+
+/** Highest and lowest modelled savings, for the stat tiles. */
+const SCENARIO_SAVINGS = SCENARIO_DEFS.map((d) => runOptimization(d.profile).annualSavings);
+const SCENARIO_MAX = Math.max(...SCENARIO_SAVINGS);
+const SCENARIO_MIN = Math.min(...SCENARIO_SAVINGS);
 export default function Home() {
   const [, navigate] = useLocation();
   const [email, setEmail] = useState("");
@@ -239,7 +288,7 @@ export default function Home() {
           </h1>
 
           <p className="text-base sm:text-xl text-zinc-400 leading-relaxed mb-8 sm:mb-10 max-w-2xl">
-            Leave work before 65 — at 45 or at 62 — and one number sets your health insurance price until Medicare starts: your MAGI. Vela tells you which accounts to draw from, and how much, to bring it down. Worth <strong className="text-white">over $14,000 a year</strong> in our modeled scenarios, every year of the gap.
+            Leave work before 65 — at 45 or at 62 — and one number sets your health insurance price until Medicare starts: your MAGI. Vela tells you which accounts to draw from, and how much, to bring it down. Worth <strong className="text-white">{money0(SCENARIO_MAX)} a year</strong> in our modeled scenarios, every year of the gap.
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -257,8 +306,8 @@ export default function Home() {
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mt-14 sm:mt-20">
           {[
-            { value: "$14,200", label: "Modeled Annual Savings", sub: "Example household — see scenarios below" },
-            { value: "71x", label: "Against the Subscription", sub: "That saving vs. $199/yr" },
+            { value: `${money0(SCENARIO_MIN)}–${money0(SCENARIO_MAX)}`, label: "Modeled Annual Savings", sub: "Range across the scenarios below" },
+            { value: `${Math.round(SCENARIO_MAX / 199)}x`, label: "Against the Subscription", sub: `Best case vs. $199/yr` },
             { value: "Until 65", label: "The Coverage Gap", sub: "However many years you have to cover" },
           ].map((stat, i) => (
             <div
@@ -547,7 +596,7 @@ export default function Home() {
             What this looks like in practice.
           </h2>
           <p className="text-zinc-400 text-base sm:text-lg max-w-xl mx-auto">
-            Illustrative scenarios showing how the optimizer reasons — not customers. Vela has not launched yet.
+            Illustrative households, not customers — Vela has not launched. Every saving below is computed by the same optimizer the tool runs, so you can reproduce any of them yourself.
           </p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
@@ -572,12 +621,16 @@ export default function Home() {
               <p className="text-zinc-300 text-sm leading-relaxed flex-1">
                 {p.story}
               </p>
-              <div
-                className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold self-start"
-                style={{ background: `${p.accentColor}15`, color: p.accentColor }}
-              >
-                <span>Modeled</span>
-                <span>{p.savings}/yr</span>
+              <div className="flex flex-col gap-2 items-start">
+                <div
+                  className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold"
+                  style={{ background: `${p.accentColor}15`, color: p.accentColor }}
+                >
+                  <span>{p.savings}/yr</span>
+                </div>
+                <div className="text-xs text-zinc-600 leading-relaxed">
+                  {p.naiveFpl}% FPL {p.losesSubsidy ? "(no credit)" : ""} → {p.optimizedFpl}% FPL
+                </div>
               </div>
             </div>
           ))}
@@ -600,7 +653,7 @@ export default function Home() {
             Pays for itself in the first hour.
           </h2>
           <p className="text-zinc-400 text-base sm:text-lg max-w-xl mx-auto">
-            In our modeled scenarios, one optimization is worth $10,000–$20,000 in healthcare costs. Vela costs less than a single doctor visit.
+            In our modeled scenarios, one optimization is worth {money0(SCENARIO_MIN)}–{money0(SCENARIO_MAX)} in healthcare costs. Vela costs less than a single doctor visit.
           </p>
         </div>
 
@@ -708,10 +761,11 @@ export default function Home() {
           className="mt-6 sm:mt-8 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-center gap-3 sm:gap-4 max-w-3xl mx-auto"
           style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}
         >
-          <div className="text-2xl font-extrabold text-emerald-400 shrink-0" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>50x</div>
+          <div className="text-2xl font-extrabold text-emerald-400 shrink-0" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{Math.round(SCENARIO_MAX / 199)}x</div>
           <div className="text-sm text-zinc-400">
-            Our modeled scenarios save <strong className="text-white">$10,000+</strong> in a single year.
-            At $199, Full Access would pay for itself <strong className="text-white">50 times over</strong> against a saving that size.
+            Our modeled scenarios save between <strong className="text-white">{money0(SCENARIO_MIN)}</strong> and{" "}
+            <strong className="text-white">{money0(SCENARIO_MAX)}</strong> in a single year.
+            At $199, Full Access pays for itself many times over against a saving that size.
           </div>
         </div>
       </section>
