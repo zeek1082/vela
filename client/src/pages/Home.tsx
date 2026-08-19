@@ -178,13 +178,6 @@ export default function Home() {
       {/* Hero Section */}
       <section className="relative z-10 max-w-7xl mx-auto px-5 sm:px-8 pt-10 sm:pt-16 pb-16 sm:pb-24">
         <div className="max-w-4xl">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 sm:mb-8 text-xs sm:text-sm font-semibold"
-            style={{ background: "rgba(0,122,255,0.1)", border: "1px solid rgba(0,122,255,0.3)", color: "#007AFF" }}>
-            <span className="w-2 h-2 rounded-full bg-[#007AFF] animate-pulse" />
-            For early retirees — and everyone planning to be one
-          </div>
-
           <h1
             className="text-4xl sm:text-5xl lg:text-6xl font-extrabold leading-tight mb-5 sm:mb-6 tracking-tight"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
