@@ -1,11 +1,14 @@
 import { useState } from "react";
 import { CheckCircle2, ArrowRight, TrendingDown, DollarSign, Percent, Bell, RefreshCw, Calendar, AlertTriangle, TrendingUp, Lock, Mail, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 import {
   type OptimizationResult,
   type UserProfile,
   formatCurrency,
 } from "@/lib/optimizer";
+import RothPipeline from "@/components/RothPipeline";
+import ActionCalendar from "@/components/ActionCalendar";
 
 interface Props {
   result: OptimizationResult;
@@ -449,8 +452,8 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
         </div>
       )}
 
-      {/* Year-Round Co-Pilot Section */}
-      <div className="mt-8 mb-2">
+      {/* Year-Round Plan — real engine output */}
+      <div className="mt-8 mb-6">
         <div className="flex items-center gap-3 mb-1">
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center"
@@ -462,136 +465,42 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
             className="text-xl font-bold text-white tracking-tight"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
           >
-            Your Year-Round Co-Pilot
+            Your Year-Round Plan
           </h3>
         </div>
         <p className="text-zinc-500 text-sm mb-5 ml-11">
-          MAGI optimization is not a once-a-year event. Here is what to watch for throughout the year.
+          MAGI is decided across a year, not in one sitting.
         </p>
 
-        {/* Pre-compute headroom to avoid complex JSX inline expressions */}
-        {(() => {
-          const cliff = profile.householdSize <= 1 ? 58320 : 78880;
-          const headroom = Math.max(0, Math.round(cliff - optimized.prescription.totalMAGI - 1));
-          const pipelineAmounts = [0,1,2,3,4].map(i => Math.min(headroom, 15000 + i * 2000));
-          const pipelineTotal = pipelineAmounts.reduce((s,v) => s+v, 0);
-          return (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-          {/* MAGI Monitor */}
-          <div
-            className="p-5 rounded-2xl"
-            style={{ background: "rgba(99,102,241,0.06)", border: "1px solid rgba(99,102,241,0.25)" }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Bell className="w-4 h-4" style={{ color: "#818cf8" }} />
-              <span className="text-sm font-semibold" style={{ color: "#a5b4fc" }}>Real-Time MAGI Monitor</span>
-            </div>
-            <div className="space-y-2">
-              {[
-                { event: "Freelance income received", risk: "high" },
-                { event: "Fund capital gain distribution", risk: "high" },
-                { event: "Portfolio rebalancing sale", risk: "medium" },
-                { event: "Interest / dividend income", risk: "medium" },
-              ].map((item) => (
-                <div key={item.event} className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-400">{item.event}</span>
-                  <span
-                    className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                    style={{
-                      background: item.risk === "high" ? "rgba(239,68,68,0.15)" : "rgba(245,158,11,0.15)",
-                      color: item.risk === "high" ? "#f87171" : "#fbbf24",
-                    }}
-                  >
-                    {item.risk === "high" ? "Alert" : "Watch"}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div
-              className="mt-4 p-3 rounded-xl text-xs text-zinc-400"
-              style={{ background: "rgba(255,255,255,0.03)" }}
-            >
-              <AlertTriangle className="w-3 h-3 inline mr-1 text-amber-400" />
-              Any of these events can push your MAGI over the subsidy cliff — triggering a loss of{" "}
-              <span className="text-white font-semibold">{formatCurrency(optimized.subsidy.annualSubsidy)}</span> in annual subsidies.
-            </div>
-          </div>
+        <div className="space-y-4">
+          <RothPipeline profile={profile} result={result} />
+          <ActionCalendar profile={profile} result={result} />
+        </div>
+      </div>
 
-          {/* Q4 Roth Conversion Window */}
-          <div
-            className="p-5 rounded-2xl"
-            style={{ background: "rgba(6,182,212,0.06)", border: "1px solid rgba(6,182,212,0.25)" }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <Calendar className="w-4 h-4" style={{ color: "#22d3ee" }} />
-              <span className="text-sm font-semibold" style={{ color: "#67e8f9" }}>Q4 Roth Conversion Window</span>
-            </div>
-            <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
-              Every October–December, you have a narrow window to convert Traditional IRA funds to Roth — building long-term tax-free wealth without losing your subsidies.
-            </p>
-            <div
-              className="p-3 rounded-xl mb-3"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <div className="text-xs text-zinc-500 mb-1">Estimated MAGI Headroom</div>
-              <div
-                className="text-2xl font-extrabold"
-                style={{
-                  fontFamily: "'Space Grotesk', sans-serif",
-                  background: "linear-gradient(90deg, #06b6d4, #6366f1)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                }}
-              >
-                {formatCurrency(headroom)}
-              </div>
-              <div className="text-xs text-zinc-500 mt-1">available before the subsidy cliff</div>
-            </div>
-            <p className="text-xs text-zinc-500 leading-relaxed">
-              Converting up to this amount to Roth this year grows your penalty-free access pool — critical for the 45–55 FIRE cohort.
-            </p>
+      {/* Report CTA */}
+      <div
+        className="p-5 rounded-2xl mb-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4"
+        style={{ background: "rgba(0,122,255,0.06)", border: "1px solid rgba(0,122,255,0.2)" }}
+      >
+        <div>
+          <div className="text-sm font-bold text-white mb-1" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+            Take this to your advisor
           </div>
-
-          {/* 5-Year Roth Pipeline */}
-          <div
-            className="p-5 rounded-2xl"
-            style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.25)" }}
-          >
-            <div className="flex items-center gap-2 mb-3">
-              <TrendingUp className="w-4 h-4 text-emerald-400" />
-              <span className="text-sm font-semibold text-emerald-400">5-Year Roth Pipeline</span>
-            </div>
-            <p className="text-xs text-zinc-400 mb-4 leading-relaxed">
-              Each year's Roth conversion becomes available penalty-free after 5 years. Track your pipeline to ensure cash flow before age 59½.
-            </p>
-            <div className="space-y-2">
-              {[2026, 2027, 2028, 2029, 2030].map((year, i) => {
-                const suggestedConversion = pipelineAmounts[i];
-                const availableYear = year + 5;
-                return (
-                  <div key={year} className="flex items-center justify-between">
-                    <div>
-                      <span className="text-xs font-semibold text-white">{year}</span>
-                      <span className="text-xs text-zinc-500 ml-2">→ available {availableYear}</span>
-                    </div>
-                    <span className="text-xs font-bold text-emerald-400">{formatCurrency(suggestedConversion)}</span>
-                  </div>
-                );
-              })}
-            </div>
-            <div
-              className="mt-3 pt-3 flex justify-between items-center"
-              style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}
-            >
-              <span className="text-xs text-zinc-500">5-Year Total</span>
-              <span className="text-sm font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                {formatCurrency(pipelineTotal)}
-              </span>
-            </div>
+          <div className="text-xs text-zinc-400">
+            A printable report with the prescription, the conversion pipeline, the calendar, and the
+            assumptions behind every figure.
           </div>
         </div>
-          );
-        })()}
+        <Link href="/report">
+          <button
+            className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold rounded-full text-white shrink-0"
+            style={{ background: "linear-gradient(135deg, #007AFF, #A855F7)" }}
+          >
+            View Report
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </Link>
       </div>
 
       {/* Reset Button */}

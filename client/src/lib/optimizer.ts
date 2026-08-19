@@ -231,7 +231,7 @@ export function runOptimization(profile: UserProfile): OptimizationResult {
   const optimizedSubsidy = calculateACASubsidy(optimizedPrescription.totalMAGI, profile);
 
   const annualSavings = naiveSubsidy.netAnnualPremium - optimizedSubsidy.netAnnualPremium;
-  const subscriptionCost = 150;
+  const subscriptionCost = 199; // Full Access annual price, matching the pricing page
   const roiMultiple = annualSavings > 0 ? Math.round(annualSavings / subscriptionCost) : 0;
 
   return {

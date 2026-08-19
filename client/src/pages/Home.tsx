@@ -217,7 +217,7 @@ export default function Home() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mt-14 sm:mt-20">
           {[
             { value: "$14,200", label: "Modeled Annual Savings", sub: "Example household — see scenarios below" },
-            { value: "94x", label: "Against the Subscription", sub: "That saving vs. $150/yr" },
+            { value: "71x", label: "Against the Subscription", sub: "That saving vs. $199/yr" },
             { value: "Until 65", label: "The Coverage Gap", sub: "However many years you have to cover" },
           ].map((stat, i) => (
             <div
@@ -607,9 +607,9 @@ export default function Home() {
                 className="w-full py-3 text-sm font-semibold rounded-xl h-auto"
                 style={{ borderColor: "rgba(16,185,129,0.4)", color: "#10B981", background: "rgba(16,185,129,0.06)" }}
               >
-                Get My Report
+                Join the Waitlist
               </Button>
-              <p className="text-xs text-zinc-600 text-center mt-2">$150 credit toward Full Access if you upgrade within 30 days.</p>
+              <p className="text-xs text-zinc-600 text-center mt-2">Not yet available to buy. Waitlist members get first access at this price.</p>
             </div>
           </div>
 
@@ -622,7 +622,7 @@ export default function Home() {
               className="absolute top-0 right-0 text-xs font-bold px-3 py-1.5 rounded-bl-xl rounded-tr-xl"
               style={{ background: "linear-gradient(135deg, #007AFF, #A855F7)", color: "white" }}
             >
-              Most Popular
+              Recommended
             </div>
             <div>
               <div className="text-xs font-bold uppercase tracking-widest mb-2" style={{ color: "#007AFF" }}>Full Access</div>
@@ -667,10 +667,10 @@ export default function Home() {
           className="mt-6 sm:mt-8 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-center gap-3 sm:gap-4 max-w-3xl mx-auto"
           style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}
         >
-          <div className="text-2xl font-extrabold text-emerald-400 shrink-0" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>200x</div>
+          <div className="text-2xl font-extrabold text-emerald-400 shrink-0" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>50x</div>
           <div className="text-sm text-zinc-400">
             Our modeled scenarios save <strong className="text-white">$10,000+</strong> in a single year.
-            At $49, a Starter Report would pay for itself <strong className="text-white">200 times over</strong> against a saving that size.
+            At $199, Full Access would pay for itself <strong className="text-white">50 times over</strong> against a saving that size.
           </div>
         </div>
       </section>
