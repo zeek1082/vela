@@ -18,6 +18,9 @@ import {
   DEMO_PROFILES,
   FPL_FOR_2026_COVERAGE,
   SUBSIDY_CLIFF_FPL_PERCENTAGE,
+  ACTIVE_REGIME,
+  REGIME_ENHANCED,
+  REGIME_REVERTED_2026,
   type UserProfile,
 } from "./optimizer";
 
@@ -179,5 +182,58 @@ describe("runOptimization on the demo profiles", () => {
     expect(r.naive.subsidy.subsidyEligible).toBe(false);
     expect(r.optimized.subsidy.subsidyEligible).toBe(true);
     expect(r.annualSavings).toBeGreaterThan(10_000);
+  });
+});
+
+describe("subsidy regimes", () => {
+  it("has no cliff under the enhanced schedule", () => {
+    const over = calculateACASubsidy(magiAt(500), couple, REGIME_ENHANCED);
+    expect(over.subsidyEligible).toBe(true);
+    expect(over.applicablePercentage).toBeCloseTo(0.085, 5);
+    expect(over.subsidyCliffRisk).toBe(false);
+  });
+
+  it("has a cliff under the reverted schedule", () => {
+    const over = calculateACASubsidy(magiAt(500), couple, REGIME_REVERTED_2026);
+    expect(over.subsidyEligible).toBe(false);
+    expect(over.annualSubsidy).toBe(0);
+  });
+
+  it("charges nothing below 150% FPL under the enhanced schedule", () => {
+    expect(getApplicablePercentage(120, REGIME_ENHANCED)).toBe(0);
+    expect(getApplicablePercentage(149, REGIME_ENHANCED)).toBe(0);
+  });
+
+  it("charges more at every income under the reverted schedule", () => {
+    for (const pct of [120, 175, 225, 275, 350, 400]) {
+      const reverted = getApplicablePercentage(pct, REGIME_REVERTED_2026)!;
+      const enhanced = getApplicablePercentage(pct, REGIME_ENHANCED)!;
+      expect(reverted, `at ${pct}% FPL`).toBeGreaterThan(enhanced);
+    }
+  });
+
+  it("keeps the 100% floor in both regimes", () => {
+    for (const regime of [REGIME_REVERTED_2026, REGIME_ENHANCED]) {
+      expect(getApplicablePercentage(99, regime), regime.id).toBeNull();
+    }
+  });
+
+  it("makes optimization worth dramatically more under the reverted schedule", () => {
+    // A household whose naive plan crosses 400% FPL. Under the enhanced
+    // schedule crossing costs relatively little; under the reverted one it
+    // costs the entire credit. This gap is the product's whole premise.
+    const overCliff: UserProfile = { ...couple, annualSpending: Math.round(magiAt(420)) };
+
+    const savingUnder = (regime: typeof REGIME_ENHANCED) => {
+      const naive = calculateACASubsidy(overCliff.annualSpending, overCliff, regime);
+      const optimized = calculateACASubsidy(magiAt(125), overCliff, regime);
+      return naive.netAnnualPremium - optimized.netAnnualPremium;
+    };
+
+    expect(savingUnder(REGIME_REVERTED_2026)).toBeGreaterThan(savingUnder(REGIME_ENHANCED) * 2);
+  });
+
+  it("ships with the reverted schedule active", () => {
+    expect(ACTIVE_REGIME.id).toBe("reverted-2026");
   });
 });

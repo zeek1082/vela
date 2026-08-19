@@ -96,28 +96,20 @@ export const FPL_FOR_2026_COVERAGE: Record<number, number> = {
   8: 54150,
 };
 
-/**
- * § 36B Applicable Percentage Table for taxable years beginning in 2026.
- *
- * Source: IRS Rev. Proc. 2025-25, which sets the indexed table for 2026.
- * https://www.irs.gov/pub/irs-drop/rp-25-25.pdf
- *
- * The enhanced subsidies introduced by the American Rescue Plan and extended by
- * the Inflation Reduction Act EXPIRED on December 31, 2025. Congress did not
- * extend them. For 2026 coverage the pre-ARPA structure is back, which means:
- *
- *   1. The 400% FPL cliff exists again. Above 400%, the premium tax credit is
- *      zero — not a capped percentage. One dollar over the line costs the
- *      entire subsidy.
- *   2. The contribution percentages are materially higher. The top of the band
- *      is 9.96% of household income, not the enhanced 8.5%.
- *   3. Below 100% FPL there is generally no PTC either. (Medicaid covers this
- *      range in expansion states; in non-expansion states it is the coverage
- *      gap. Either way the marketplace credit does not apply.)
- *
- * Within each band the percentage rises linearly from the initial to the final
- * value, which is why this interpolates rather than returning a flat rate.
- */
+// ─── Subsidy regimes ─────────────────────────────────────────────────────────
+//
+// Which rules apply is a policy question with an open legislative answer, so it
+// is a parameter here rather than a hardcoded assumption.
+//
+// The enhanced subsidies from the American Rescue Plan, extended by the
+// Inflation Reduction Act, EXPIRED on December 31, 2025. The pre-ARPA structure
+// governs 2026 coverage: a hard 400% FPL cliff and higher contribution
+// percentages. The House passed a three-year extension on January 8, 2026; as of
+// this writing it has not cleared the Senate.
+//
+// If that changes, switch ACTIVE_REGIME. Nothing else needs to move — the
+// optimizer, the pipeline projection, and the landing page's cliff chart all
+// read their rules from here.
 
 interface PercentageBand {
   /** Lower bound, as a percentage of FPL. */
@@ -130,20 +122,86 @@ interface PercentageBand {
   final: number;
 }
 
-const APPLICABLE_PERCENTAGE_2026: PercentageBand[] = [
-  { from: 100, to: 133, initial: 0.0210, final: 0.0210 },
-  { from: 133, to: 150, initial: 0.0314, final: 0.0419 },
-  { from: 150, to: 200, initial: 0.0419, final: 0.0660 },
-  { from: 200, to: 250, initial: 0.0660, final: 0.0844 },
-  { from: 250, to: 300, initial: 0.0844, final: 0.0996 },
-  { from: 300, to: 400, initial: 0.0996, final: 0.0996 },
-];
+export interface SubsidyRegime {
+  id: 'reverted-2026' | 'enhanced';
+  /** Short label for display. */
+  label: string;
+  /** One line on what this regime is and where it comes from. */
+  description: string;
+  /** Income floor for any credit, as a percentage of FPL. */
+  floorFplPercentage: number;
+  /**
+   * Income ceiling for any credit, as a percentage of FPL. Null means no
+   * ceiling — the defining feature of the enhanced regime.
+   */
+  ceilingFplPercentage: number | null;
+  /** Applicable percentage above the ceiling, when there is no cliff. */
+  aboveCeilingPercentage: number | null;
+  bands: PercentageBand[];
+}
 
-/** The income ceiling for any premium tax credit, as a percentage of FPL. */
-export const SUBSIDY_CLIFF_FPL_PERCENTAGE = 400;
+/**
+ * Pre-ARPA structure, indexed for 2026.
+ * Source: IRS Rev. Proc. 2025-25 — https://www.irs.gov/pub/irs-drop/rp-25-25.pdf
+ *
+ * Percentages rise linearly inside each band, which is why these interpolate
+ * rather than returning a flat rate per tier.
+ */
+export const REGIME_REVERTED_2026: SubsidyRegime = {
+  id: 'reverted-2026',
+  label: '2026 rules (enhanced subsidies expired)',
+  description:
+    'The pre-ARPA structure, indexed for 2026 by Rev. Proc. 2025-25. A hard 400% FPL cliff, contributions topping out at 9.96% of income.',
+  floorFplPercentage: 100,
+  ceilingFplPercentage: 400,
+  aboveCeilingPercentage: null,
+  bands: [
+    { from: 100, to: 133, initial: 0.0210, final: 0.0210 },
+    { from: 133, to: 150, initial: 0.0314, final: 0.0419 },
+    { from: 150, to: 200, initial: 0.0419, final: 0.0660 },
+    { from: 200, to: 250, initial: 0.0660, final: 0.0844 },
+    { from: 250, to: 300, initial: 0.0844, final: 0.0996 },
+    { from: 300, to: 400, initial: 0.0996, final: 0.0996 },
+  ],
+};
 
-/** The income floor for any premium tax credit, as a percentage of FPL. */
-export const SUBSIDY_FLOOR_FPL_PERCENTAGE = 100;
+/**
+ * The ARPA/IRA enhanced schedule that applied 2021-2025, and which pending
+ * legislation would restore. No cliff: above 400% FPL the household simply pays
+ * 8.5% of income toward the benchmark plan.
+ */
+export const REGIME_ENHANCED: SubsidyRegime = {
+  id: 'enhanced',
+  label: 'Enhanced subsidies (ARPA/IRA schedule)',
+  description:
+    'The schedule in force 2021-2025. No 400% cliff — contributions cap at 8.5% of income at any level above it.',
+  floorFplPercentage: 100,
+  ceilingFplPercentage: null,
+  aboveCeilingPercentage: 0.085,
+  bands: [
+    { from: 100, to: 150, initial: 0, final: 0 },
+    { from: 150, to: 200, initial: 0, final: 0.02 },
+    { from: 200, to: 250, initial: 0.02, final: 0.04 },
+    { from: 250, to: 300, initial: 0.04, final: 0.06 },
+    { from: 300, to: 400, initial: 0.06, final: 0.085 },
+  ],
+};
+
+export const SUBSIDY_REGIMES: Record<SubsidyRegime['id'], SubsidyRegime> = {
+  'reverted-2026': REGIME_REVERTED_2026,
+  enhanced: REGIME_ENHANCED,
+};
+
+/**
+ * The regime currently in force. Change this one line if the Senate acts.
+ */
+export const ACTIVE_REGIME: SubsidyRegime = REGIME_REVERTED_2026;
+
+/** The income ceiling under the active regime, or 400 for display purposes. */
+export const SUBSIDY_CLIFF_FPL_PERCENTAGE = ACTIVE_REGIME.ceilingFplPercentage ?? 400;
+
+/** The income floor under the active regime, as a percentage of FPL. */
+export const SUBSIDY_FLOOR_FPL_PERCENTAGE = ACTIVE_REGIME.floorFplPercentage;
 
 /**
  * Where the optimizer aims MAGI: above the 100% FPL eligibility floor with a
@@ -156,16 +214,31 @@ export const MAGI_FLOOR_FPL_PERCENTAGE = 125;
  * The share of household income the household must contribute toward the
  * benchmark plan, or null when no credit is available at this income.
  */
-export function getApplicablePercentage(fplPct: number): number | null {
-  if (fplPct < SUBSIDY_FLOOR_FPL_PERCENTAGE) return null;
-  if (fplPct > SUBSIDY_CLIFF_FPL_PERCENTAGE) return null;
+export function getApplicablePercentage(
+  fplPct: number,
+  regime: SubsidyRegime = ACTIVE_REGIME
+): number | null {
+  if (fplPct < regime.floorFplPercentage) return null;
+
+  if (regime.ceilingFplPercentage !== null && fplPct > regime.ceilingFplPercentage) {
+    // A cliff: no credit at all above the line.
+    return null;
+  }
+
+  if (regime.ceilingFplPercentage === null) {
+    const top = regime.bands[regime.bands.length - 1];
+    if (fplPct > top.to) {
+      // No cliff: the contribution percentage simply flattens.
+      return regime.aboveCeilingPercentage;
+    }
+  }
 
   // The statute's bands are half-open — "less than 133%", then "at least 133%
   // but less than 150%", and so on — so an income landing exactly on a boundary
-  // belongs to the band above it. Only the final band includes its upper bound,
-  // because 400% itself is still eligible.
-  const band = APPLICABLE_PERCENTAGE_2026.find(
-    (b) => fplPct >= b.from && (fplPct < b.to || b.to === SUBSIDY_CLIFF_FPL_PERCENTAGE)
+  // belongs to the band above it. The final band includes its upper bound.
+  const top = regime.bands[regime.bands.length - 1];
+  const band = regime.bands.find(
+    (b) => fplPct >= b.from && (fplPct < b.to || b.to === top.to)
   );
   if (!band) return null;
 
@@ -196,19 +269,20 @@ function getBenchmarkPremium(age: number, filingStatus: 'single' | 'married'): n
 
 export function calculateACASubsidy(
   magi: number,
-  profile: UserProfile
+  profile: UserProfile,
+  regime: SubsidyRegime = ACTIVE_REGIME
 ): ACASubsidyResult {
   const fpl = FPL_FOR_2026_COVERAGE[profile.householdSize] || FPL_FOR_2026_COVERAGE[4];
   const fplPercentage = (magi / fpl) * 100;
   const benchmarkPremium = getBenchmarkPremium(profile.age, profile.filingStatus);
-  const applicablePercentage = getApplicablePercentage(fplPercentage);
+  const applicablePercentage = getApplicablePercentage(fplPercentage, regime);
 
   // Outside the 100%-400% band there is no premium tax credit at all, so the
   // household pays the full benchmark premium. This is the cliff, and modelling
   // it is the entire point of the product.
   if (applicablePercentage === null) {
     const ineligibleReason =
-      fplPercentage < SUBSIDY_FLOOR_FPL_PERCENTAGE ? 'below-100-fpl' : 'above-400-fpl';
+      fplPercentage < regime.floorFplPercentage ? 'below-100-fpl' : 'above-400-fpl';
     return {
       magi,
       fplPercentage,
@@ -242,7 +316,11 @@ export function calculateACASubsidy(
     costSharingReduction: fplPercentage <= 250,
     // Within 5 percentage points of the cliff, a modest surprise in income
     // (a fund distribution, a 1099) wipes out the whole credit.
-    subsidyCliffRisk: fplPercentage >= 380 && fplPercentage <= 400,
+    // Only meaningful when a cliff exists to fall off.
+    subsidyCliffRisk:
+      regime.ceilingFplPercentage !== null &&
+      fplPercentage >= regime.ceilingFplPercentage - 20 &&
+      fplPercentage <= regime.ceilingFplPercentage,
     subsidyEligible: true,
     ineligibleReason: null,
     applicablePercentage,

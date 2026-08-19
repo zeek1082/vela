@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { Link, useRoute } from "wouter";
 import { ArrowLeft, Printer, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/optimizer";
+import { formatCurrency, ACTIVE_REGIME } from "@/lib/optimizer";
 import { getHistory, type HistoryRun } from "@/lib/history";
 import { buildPipeline, buildActionCalendar, MEDICARE_AGE } from "@/lib/pipeline";
 import { LOGO_URL } from "@/lib/brand";
@@ -364,6 +364,12 @@ export default function Report() {
               modelling the household's own inputs against 2026 Federal Poverty Level thresholds and
               the ACA premium contribution schedule. Nothing is drawn from other households or
               historical averages.
+            </p>
+            <p>
+              <strong className="print-dark">Which subsidy rules apply.</strong> This report is
+              calculated under {ACTIVE_REGIME.label}. {ACTIVE_REGIME.description} Legislation to
+              change this is pending in Congress; if it passes, the figures here change and the
+              report should be re-run.
             </p>
             <p>
               <strong className="print-dark">Benchmark premiums are estimates.</strong> The subsidy

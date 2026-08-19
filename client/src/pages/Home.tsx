@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
 import { LOGO_URL } from "@/lib/brand";
 import {
+  ACTIVE_REGIME,
   calculateACASubsidy,
   runOptimization,
   FPL_FOR_2026_COVERAGE,
@@ -573,7 +574,7 @@ export default function Home() {
               </div>
               <div className="mt-3 flex items-center gap-2 text-xs text-zinc-500">
                 <span className="w-3 h-0.5 inline-block" style={{ background: "#EC4899" }} />
-                400% FPL cliff at {money0(CLIFF_MAGI)} — married couple, both 60, 2026 coverage
+                400% FPL cliff at {money0(CLIFF_MAGI)} — married couple, both 60, 2026 coverage. Calculated under {ACTIVE_REGIME.label.toLowerCase()}.
               </div>
             </div>
           </div>
