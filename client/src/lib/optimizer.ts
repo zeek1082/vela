@@ -41,8 +41,14 @@ export interface ACASubsidyResult {
   monthlySubsidy: number;
   netAnnualPremium: number;        // What user actually pays
   netMonthlyPremium: number;
-  costSharingReduction: boolean;   // CSR eligible (< 250% FPL)
-  subsidyCliffRisk: boolean;       // Within $2,000 of 400% FPL cliff
+  costSharingReduction: boolean;   // CSR eligible (<= 250% FPL)
+  subsidyCliffRisk: boolean;       // Close enough to the 400% cliff to be dangerous
+  /** False when MAGI falls outside the 100%-400% FPL band where the PTC exists. */
+  subsidyEligible: boolean;
+  /** Why the household is ineligible, when it is. */
+  ineligibleReason: 'below-100-fpl' | 'above-400-fpl' | null;
+  /** The § 36B applicable percentage used, or null when ineligible. */
+  applicablePercentage: number | null;
 }
 
 export interface WithdrawalPrescription {
@@ -70,8 +76,16 @@ export interface OptimizationResult {
   subscriptionCost: number;
 }
 
-// 2026 Federal Poverty Level (FPL) thresholds
-const FPL_2026: Record<number, number> = {
+/**
+ * Federal Poverty Level figures used for 2026 marketplace coverage.
+ *
+ * Eligibility for a coverage year is determined against the poverty guidelines
+ * in effect when open enrollment opens — so 2026 coverage uses the 2025 HHS
+ * guidelines, which is what these are. Figures are for the 48 contiguous states
+ * and DC; Alaska and Hawaii have separate, higher guidelines that this table
+ * does not yet model.
+ */
+export const FPL_FOR_2026_COVERAGE: Record<number, number> = {
   1: 15650,
   2: 21150,
   3: 26650,
@@ -82,17 +96,82 @@ const FPL_2026: Record<number, number> = {
   8: 54150,
 };
 
-// ACA contribution percentage table (2026 — enhanced subsidies extended)
-// Maps FPL % range to max % of income user must contribute to benchmark premium
-function getMaxContributionPercentage(fplPct: number): number {
-  if (fplPct <= 133) return 0.0;
-  if (fplPct <= 150) return 0.0;
-  if (fplPct <= 200) return 0.02;
-  if (fplPct <= 250) return 0.04;
-  if (fplPct <= 300) return 0.06;
-  if (fplPct <= 400) return 0.085;
-  // With enhanced subsidies extended, cap at 8.5% above 400% FPL
-  return 0.085;
+/**
+ * § 36B Applicable Percentage Table for taxable years beginning in 2026.
+ *
+ * Source: IRS Rev. Proc. 2025-25, which sets the indexed table for 2026.
+ * https://www.irs.gov/pub/irs-drop/rp-25-25.pdf
+ *
+ * The enhanced subsidies introduced by the American Rescue Plan and extended by
+ * the Inflation Reduction Act EXPIRED on December 31, 2025. Congress did not
+ * extend them. For 2026 coverage the pre-ARPA structure is back, which means:
+ *
+ *   1. The 400% FPL cliff exists again. Above 400%, the premium tax credit is
+ *      zero — not a capped percentage. One dollar over the line costs the
+ *      entire subsidy.
+ *   2. The contribution percentages are materially higher. The top of the band
+ *      is 9.96% of household income, not the enhanced 8.5%.
+ *   3. Below 100% FPL there is generally no PTC either. (Medicaid covers this
+ *      range in expansion states; in non-expansion states it is the coverage
+ *      gap. Either way the marketplace credit does not apply.)
+ *
+ * Within each band the percentage rises linearly from the initial to the final
+ * value, which is why this interpolates rather than returning a flat rate.
+ */
+
+interface PercentageBand {
+  /** Lower bound, as a percentage of FPL. */
+  from: number;
+  /** Upper bound, as a percentage of FPL. */
+  to: number;
+  /** Applicable percentage at the lower bound. */
+  initial: number;
+  /** Applicable percentage at the upper bound. */
+  final: number;
+}
+
+const APPLICABLE_PERCENTAGE_2026: PercentageBand[] = [
+  { from: 100, to: 133, initial: 0.0210, final: 0.0210 },
+  { from: 133, to: 150, initial: 0.0314, final: 0.0419 },
+  { from: 150, to: 200, initial: 0.0419, final: 0.0660 },
+  { from: 200, to: 250, initial: 0.0660, final: 0.0844 },
+  { from: 250, to: 300, initial: 0.0844, final: 0.0996 },
+  { from: 300, to: 400, initial: 0.0996, final: 0.0996 },
+];
+
+/** The income ceiling for any premium tax credit, as a percentage of FPL. */
+export const SUBSIDY_CLIFF_FPL_PERCENTAGE = 400;
+
+/** The income floor for any premium tax credit, as a percentage of FPL. */
+export const SUBSIDY_FLOOR_FPL_PERCENTAGE = 100;
+
+/**
+ * Where the optimizer aims MAGI: above the 100% FPL eligibility floor with a
+ * margin for estimate error, and low enough that the applicable percentage
+ * stays near the bottom of the table.
+ */
+export const MAGI_FLOOR_FPL_PERCENTAGE = 125;
+
+/**
+ * The share of household income the household must contribute toward the
+ * benchmark plan, or null when no credit is available at this income.
+ */
+export function getApplicablePercentage(fplPct: number): number | null {
+  if (fplPct < SUBSIDY_FLOOR_FPL_PERCENTAGE) return null;
+  if (fplPct > SUBSIDY_CLIFF_FPL_PERCENTAGE) return null;
+
+  // The statute's bands are half-open — "less than 133%", then "at least 133%
+  // but less than 150%", and so on — so an income landing exactly on a boundary
+  // belongs to the band above it. Only the final band includes its upper bound,
+  // because 400% itself is still eligible.
+  const band = APPLICABLE_PERCENTAGE_2026.find(
+    (b) => fplPct >= b.from && (fplPct < b.to || b.to === SUBSIDY_CLIFF_FPL_PERCENTAGE)
+  );
+  if (!band) return null;
+
+  if (band.final === band.initial) return band.initial;
+  const position = (fplPct - band.from) / (band.to - band.from);
+  return band.initial + position * (band.final - band.initial);
 }
 
 // Benchmark Silver plan annual premium by age and filing status (2026 national avg)
@@ -119,11 +198,35 @@ export function calculateACASubsidy(
   magi: number,
   profile: UserProfile
 ): ACASubsidyResult {
-  const fpl = FPL_2026[profile.householdSize] || FPL_2026[4];
+  const fpl = FPL_FOR_2026_COVERAGE[profile.householdSize] || FPL_FOR_2026_COVERAGE[4];
   const fplPercentage = (magi / fpl) * 100;
   const benchmarkPremium = getBenchmarkPremium(profile.age, profile.filingStatus);
-  const maxContributionPct = getMaxContributionPercentage(fplPercentage);
-  const maxContribution = Math.min(magi * maxContributionPct, benchmarkPremium);
+  const applicablePercentage = getApplicablePercentage(fplPercentage);
+
+  // Outside the 100%-400% band there is no premium tax credit at all, so the
+  // household pays the full benchmark premium. This is the cliff, and modelling
+  // it is the entire point of the product.
+  if (applicablePercentage === null) {
+    const ineligibleReason =
+      fplPercentage < SUBSIDY_FLOOR_FPL_PERCENTAGE ? 'below-100-fpl' : 'above-400-fpl';
+    return {
+      magi,
+      fplPercentage,
+      benchmarkPremium,
+      maxContribution: benchmarkPremium,
+      annualSubsidy: 0,
+      monthlySubsidy: 0,
+      netAnnualPremium: benchmarkPremium,
+      netMonthlyPremium: benchmarkPremium / 12,
+      costSharingReduction: false,
+      subsidyCliffRisk: false,
+      subsidyEligible: false,
+      ineligibleReason,
+      applicablePercentage: null,
+    };
+  }
+
+  const maxContribution = Math.min(magi * applicablePercentage, benchmarkPremium);
   const annualSubsidy = Math.max(0, benchmarkPremium - maxContribution);
   const netAnnualPremium = benchmarkPremium - annualSubsidy;
 
@@ -137,7 +240,12 @@ export function calculateACASubsidy(
     netAnnualPremium,
     netMonthlyPremium: netAnnualPremium / 12,
     costSharingReduction: fplPercentage <= 250,
-    subsidyCliffRisk: fplPercentage >= 380 && fplPercentage <= 410,
+    // Within 5 percentage points of the cliff, a modest surprise in income
+    // (a fund distribution, a 1099) wipes out the whole credit.
+    subsidyCliffRisk: fplPercentage >= 380 && fplPercentage <= 400,
+    subsidyEligible: true,
+    ineligibleReason: null,
+    applicablePercentage,
   };
 }
 
@@ -160,65 +268,73 @@ function buildNaivePrescription(profile: UserProfile): WithdrawalPrescription {
   };
 }
 
+/**
+ * Choose which accounts to draw from, and how much, to land MAGI in the band
+ * where the subsidy is worth most.
+ *
+ * The objective is NOT "minimise MAGI". Below 100% FPL the premium tax credit
+ * disappears entirely, exactly as it does above 400%, so there is a floor as
+ * well as a ceiling. The strategy is therefore:
+ *
+ *   1. Cover spending from the sources that generate the least MAGI — Roth
+ *      withdrawals first, then brokerage sales where only the gain counts.
+ *   2. If that leaves MAGI below the floor, swap Roth dollars for Traditional
+ *      IRA dollars until it clears. Same cash to spend, more MAGI, and it
+ *      preserves Roth balance — which is the asset worth keeping.
+ *
+ * The floor carries a deliberate margin above 100% FPL. Landing exactly on the
+ * line is fragile: a small estimate error at enrollment, and the household
+ * lands underneath it.
+ */
 function buildOptimizedPrescription(profile: UserProfile): WithdrawalPrescription {
-  const { accounts, annualSpending, householdSize, filingStatus } = profile;
-  const fpl = FPL_2026[householdSize] || FPL_2026[4];
-  
-  // Target MAGI: ~175% FPL — sweet spot for CSR + large subsidy
-  // But must be at least 100% FPL to qualify for subsidies
-  const targetMAGI = Math.min(fpl * 1.75, fpl * 3.5);
-  
-  let remainingSpendingNeed = annualSpending;
-  let currentMAGI = 0;
+  const { accounts, annualSpending, householdSize } = profile;
+  const fpl = FPL_FOR_2026_COVERAGE[householdSize] || FPL_FOR_2026_COVERAGE[4];
 
-  // Step 1: Use Roth IRA withdrawals first (zero MAGI impact)
-  const rothWithdrawal = Math.min(remainingSpendingNeed * 0.45, accounts.rothIRA);
-  remainingSpendingNeed -= rothWithdrawal;
+  /** Target MAGI floor, with margin above the 100% FPL eligibility line. */
+  const floorMAGI = fpl * (MAGI_FLOOR_FPL_PERCENTAGE / 100);
 
-  // Step 2: Use brokerage cost basis return (zero MAGI impact)
-  const brokerageGainRatio = accounts.brokerage > 0
-    ? (accounts.brokerage - accounts.brokerageCostBasis) / accounts.brokerage
-    : 0;
-  
-  // How much brokerage can we sell while keeping gains within MAGI budget?
-  const magiRemainingBudget = Math.max(0, targetMAGI - currentMAGI);
-  const maxBrokerageSaleForMAGI = brokerageGainRatio > 0
-    ? magiRemainingBudget / brokerageGainRatio
-    : accounts.brokerage;
-  
-  const brokerageSale = Math.min(
-    remainingSpendingNeed * 0.4,
-    accounts.brokerage,
-    maxBrokerageSaleForMAGI
-  );
-  const brokerageGainRealized = brokerageSale * brokerageGainRatio;
+  const gainRatio =
+    accounts.brokerage > 0
+      ? (accounts.brokerage - accounts.brokerageCostBasis) / accounts.brokerage
+      : 0;
+
+  // Step 1 — cover spending from the least MAGI-generating sources first.
+  let need = annualSpending;
+
+  let rothWithdrawal = Math.min(need, accounts.rothIRA);
+  need -= rothWithdrawal;
+
+  const brokerageSale = Math.min(need, accounts.brokerage);
+  let brokerageGainRealized = brokerageSale * gainRatio;
   const brokerageBasisReturned = brokerageSale - brokerageGainRealized;
-  currentMAGI += brokerageGainRealized;
-  remainingSpendingNeed -= brokerageSale;
+  need -= brokerageSale;
 
-  // Step 3: Fill remaining from Traditional IRA, up to MAGI target
-  const tradWithdrawal = Math.min(
-    remainingSpendingNeed,
-    accounts.traditionalIRA,
-    Math.max(0, targetMAGI - currentMAGI)
-  );
-  currentMAGI += tradWithdrawal;
-  remainingSpendingNeed -= tradWithdrawal;
+  let traditionalIRAWithdrawal = Math.min(need, accounts.traditionalIRA);
+  need -= traditionalIRAWithdrawal;
 
-  // Step 4: Any remaining gap filled from Roth (still zero MAGI)
-  const additionalRoth = Math.min(remainingSpendingNeed, accounts.rothIRA - rothWithdrawal);
-  const totalRoth = rothWithdrawal + additionalRoth;
+  let totalMAGI = traditionalIRAWithdrawal + brokerageGainRealized;
 
-  const totalMAGI = tradWithdrawal + brokerageGainRealized;
+  // Step 2 — if MAGI is under the floor, swap Roth dollars for Traditional
+  // dollars. Cash generated is unchanged; MAGI rises to where the credit lives.
+  const deficit = floorMAGI - totalMAGI;
+  if (deficit > 0) {
+    const headroomInTraditional = accounts.traditionalIRA - traditionalIRAWithdrawal;
+    const shift = Math.min(deficit, rothWithdrawal, headroomInTraditional);
+    if (shift > 0) {
+      traditionalIRAWithdrawal += shift;
+      rothWithdrawal -= shift;
+      totalMAGI += shift;
+    }
+  }
 
   return {
-    traditionalIRAWithdrawal: tradWithdrawal,
-    rothIRAWithdrawal: totalRoth,
+    traditionalIRAWithdrawal,
+    rothIRAWithdrawal: rothWithdrawal,
     brokerageSale,
     brokerageGainRealized,
     brokerageBasisReturned,
     hsaWithdrawal: 0,
-    totalCashGenerated: tradWithdrawal + totalRoth + brokerageSale,
+    totalCashGenerated: traditionalIRAWithdrawal + rothWithdrawal + brokerageSale,
     totalMAGI,
   };
 }

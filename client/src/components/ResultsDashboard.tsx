@@ -437,6 +437,49 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
       </div>
 
       {/* CSR Badge */}
+      {/* Cliff outcome — the thing the product exists to prevent */}
+      {!naive.subsidy.subsidyEligible && optimized.subsidy.subsidyEligible && (
+        <div
+          className="p-4 rounded-xl mb-6 flex items-start gap-3"
+          style={{ background: "rgba(236,72,153,0.08)", border: "1px solid rgba(236,72,153,0.25)" }}
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#EC4899" }} />
+          <div>
+            <div className="text-sm font-semibold" style={{ color: "#EC4899" }}>
+              The unoptimized plan loses your subsidy entirely
+            </div>
+            <div className="text-xs text-zinc-400 mt-0.5">
+              Taking it all from your Traditional IRA puts MAGI at{" "}
+              {naive.subsidy.fplPercentage.toFixed(0)}% of the Federal Poverty Level —{" "}
+              {naive.subsidy.ineligibleReason === "above-400-fpl"
+                ? "past the 400% line, where the premium tax credit is zero rather than reduced"
+                : "below the 100% line, where the credit does not apply"}
+              . The optimized plan keeps you inside the band, which is where this{" "}
+              {formatCurrency(annualSavings)} comes from.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {!optimized.subsidy.subsidyEligible && (
+        <div
+          className="p-4 rounded-xl mb-6 flex items-start gap-3"
+          style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.25)" }}
+        >
+          <AlertTriangle className="w-5 h-5 shrink-0 mt-0.5" style={{ color: "#F59E0B" }} />
+          <div>
+            <div className="text-sm font-semibold" style={{ color: "#F59E0B" }}>
+              No premium tax credit available at this income
+            </div>
+            <div className="text-xs text-zinc-400 mt-0.5">
+              {optimized.subsidy.ineligibleReason === "above-400-fpl"
+                ? `Even optimized, your spending requires MAGI at ${optimized.subsidy.fplPercentage.toFixed(0)}% of FPL — above the 400% ceiling. Reducing spending or drawing more from Roth and cost basis is what moves this.`
+                : `MAGI lands at ${optimized.subsidy.fplPercentage.toFixed(0)}% of FPL, below the 100% floor where the credit begins. Your accounts may not hold enough Traditional IRA balance to raise it. Medicaid may apply instead, depending on your state.`}
+            </div>
+          </div>
+        </div>
+      )}
+
       {optimized.subsidy.costSharingReduction && (
         <div
           className="p-4 rounded-xl mb-6 flex items-center gap-3"
