@@ -3,6 +3,7 @@ import { useLocation, Link } from "wouter";
 import { ArrowLeft, ArrowRight, Calculator, CheckCircle2, ChevronRight, User, Wallet, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
+import MoneyInput from "@/components/MoneyInput";
 import {
   runOptimization,
   DEMO_PROFILES,
@@ -310,7 +311,7 @@ function ProfileStep({
           <SliderInput
             value={profile.householdSize}
             min={1}
-            max={6}
+            max={8}
             step={1}
             onChange={(v) => setProfile({ ...profile, householdSize: v })}
             display={`${profile.householdSize} ${profile.householdSize === 1 ? "person" : "people"}`}
@@ -325,6 +326,8 @@ function ProfileStep({
             step={5000}
             onChange={(v) => setProfile({ ...profile, annualSpending: v })}
             display={formatCurrency(profile.annualSpending)}
+            money
+            ariaLabel="Annual spending goal"
           />
         </FormRow>
       </div>
@@ -393,6 +396,7 @@ function AccountsStep({
           onChange={(v) => updateAccount("brokerageCostBasis", Math.min(v, accounts.brokerage))}
           min={0}
           max={accounts.brokerage}
+          hardMax={accounts.brokerage}
           step={10000}
         />
         <AccountCard
@@ -544,6 +548,8 @@ function SliderInput({
   step,
   onChange,
   display,
+  money,
+  ariaLabel,
 }: {
   value: number;
   min: number;
@@ -551,26 +557,44 @@ function SliderInput({
   step: number;
   onChange: (v: number) => void;
   display: string;
+  /** Render the figure as a click-to-edit amount rather than static text. */
+  money?: boolean;
+  ariaLabel?: string;
 }) {
+  const sliderMax = Math.max(max, value);
   return (
     <div>
-      <div
-        className="text-2xl font-bold text-white mb-4"
-        style={{ fontFamily: "'Space Grotesk', sans-serif" }}
-      >
-        {display}
-      </div>
+      {money ? (
+        <div className="mb-4">
+          <MoneyInput
+            value={value}
+            onChange={onChange}
+            min={min}
+            color="#FFFFFF"
+            className="text-2xl"
+            ariaLabel={ariaLabel ?? "Amount"}
+          />
+        </div>
+      ) : (
+        <div
+          className="text-2xl font-bold text-white mb-4"
+          style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+        >
+          {display}
+        </div>
+      )}
       <Slider
-        value={[value]}
+        value={[Math.min(value, sliderMax)]}
         min={min}
-        max={max}
+        max={sliderMax}
         step={step}
         onValueChange={([v]) => onChange(v)}
         className="w-full"
       />
       <div className="flex justify-between text-xs text-zinc-600 mt-2">
-        <span>{typeof min === "number" && min >= 1000 ? formatCurrency(min) : min}</span>
-        <span>{typeof max === "number" && max >= 1000 ? formatCurrency(max) : max}</span>
+        <span>{min >= 1000 ? formatCurrency(min) : min}</span>
+        {money && <span>Click the amount to type an exact figure</span>}
+        <span>{sliderMax >= 1000 ? formatCurrency(sliderMax) : sliderMax}</span>
       </div>
     </div>
   );
@@ -614,6 +638,7 @@ function AccountCard({
   min,
   max,
   step,
+  hardMax,
 }: {
   label: string;
   sublabel: string;
@@ -623,7 +648,13 @@ function AccountCard({
   min: number;
   max: number;
   step: number;
+  /** Optional true ceiling. Without one, a typed amount is only bounded by sanity. */
+  hardMax?: number;
 }) {
+  // The slider grows to fit a typed amount so the handle never sits pinned at
+  // the end misrepresenting the value.
+  const sliderMax = Math.max(max, value);
+
   return (
     <div
       className="p-5 rounded-2xl"
@@ -634,21 +665,32 @@ function AccountCard({
           <div className="text-sm font-semibold text-white mb-0.5">{label}</div>
           <div className="text-xs text-zinc-500">{sublabel}</div>
         </div>
-        <div
-          className="text-xl font-bold"
-          style={{ fontFamily: "'Space Grotesk', sans-serif", color }}
-        >
-          {formatCurrency(value)}
-        </div>
+        <MoneyInput
+          value={value}
+          onChange={onChange}
+          min={min}
+          max={hardMax}
+          color={color}
+          ariaLabel={label}
+        />
       </div>
       <Slider
-        value={[value]}
+        value={[Math.min(value, sliderMax)]}
         min={min}
-        max={max}
+        max={sliderMax}
         step={step}
         onValueChange={([v]) => onChange(v)}
         className="w-full"
       />
+      <div className="flex justify-between items-center text-xs text-zinc-600 mt-2">
+        <span>{formatCurrency(min)}</span>
+        {value > max ? (
+          <span style={{ color }}>range extended to fit your amount</span>
+        ) : (
+          <span>Click the amount to type an exact figure</span>
+        )}
+        <span>{formatCurrency(sliderMax)}</span>
+      </div>
     </div>
   );
 }
