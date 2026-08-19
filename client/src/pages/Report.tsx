@@ -17,6 +17,7 @@ import { formatCurrency, ACTIVE_REGIME } from "@/lib/optimizer";
 import { getHistory, type HistoryRun } from "@/lib/history";
 import { buildPipeline, buildActionCalendar, MEDICARE_AGE } from "@/lib/pipeline";
 import { LOGO_URL } from "@/lib/brand";
+import { PAYMENT_LINK, SELLING_ENABLED, STARTER_PRICE, hasPurchased } from "@/lib/pricing";
 
 export default function Report() {
   const [, params] = useRoute("/report/:id");
@@ -54,6 +55,49 @@ export default function Report() {
             >
               Run the optimizer
             </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  // While selling is switched off the report is simply free — the site never
+  // withholds something it cannot sell. Once a payment link exists, unpurchased
+  // visitors see the offer instead.
+  if (SELLING_ENABLED && !hasPurchased()) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-5" style={{ background: "#1c1c1e" }}>
+        <div
+          className="max-w-md w-full rounded-3xl p-8 sm:p-10"
+          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(0,122,255,0.25)" }}
+        >
+          <h1
+            className="text-2xl font-bold text-white mb-3"
+            style={{ fontFamily: "'Space Grotesk', sans-serif" }}
+          >
+            Your report is ready
+          </h1>
+          <p className="text-sm text-zinc-400 leading-relaxed mb-6">
+            {formatCurrency(run.result.annualSavings)} in modelled savings, with the withdrawal
+            prescription, the year-by-year conversion pipeline, the {new Date(run.createdAt).getFullYear()} action
+            calendar, and the assumptions behind every figure — as a document you can print or hand
+            to your advisor.
+          </p>
+          <a href={PAYMENT_LINK} target="_blank" rel="noopener noreferrer">
+            <Button
+              className="w-full py-3 text-sm font-semibold rounded-xl text-white border-0 h-auto"
+              style={{ background: "linear-gradient(135deg, #007AFF, #A855F7)" }}
+            >
+              Get the report — {STARTER_PRICE}
+            </Button>
+          </a>
+          <p className="text-xs text-zinc-600 text-center mt-3">
+            One-time. Secure checkout through Stripe.
+          </p>
+          <Link href="/optimize">
+            <button className="w-full mt-5 text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+              ← Back to your results
+            </button>
           </Link>
         </div>
       </div>

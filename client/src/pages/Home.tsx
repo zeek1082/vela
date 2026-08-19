@@ -4,6 +4,7 @@ import { ArrowRight, TrendingDown, Shield, Calculator, ChevronRight, Mail, Check
 import { Button } from "@/components/ui/button";
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } from "recharts";
 import { LOGO_URL } from "@/lib/brand";
+import { PAYMENT_LINK, SELLING_ENABLED, STARTER_PRICE } from "@/lib/pricing";
 import {
   ACTIVE_REGIME,
   calculateACASubsidy,
@@ -696,15 +697,33 @@ export default function Home() {
               ))}
             </div>
             <div>
-              <Button
-                onClick={() => navigate("/optimize")}
-                variant="outline"
-                className="w-full py-3 text-sm font-semibold rounded-xl h-auto"
-                style={{ borderColor: "rgba(16,185,129,0.4)", color: "#10B981", background: "rgba(16,185,129,0.06)" }}
-              >
-                Join the Waitlist
-              </Button>
-              <p className="text-xs text-zinc-600 text-center mt-2">Not yet available to buy. Waitlist members get first access at this price.</p>
+              {SELLING_ENABLED ? (
+                <>
+                  <a href={PAYMENT_LINK} target="_blank" rel="noopener noreferrer">
+                    <Button
+                      className="w-full py-3 text-sm font-semibold rounded-xl h-auto text-white border-0"
+                      style={{ background: "linear-gradient(135deg, #10B981, #34D399)" }}
+                    >
+                      Get My Report — {STARTER_PRICE}
+                    </Button>
+                  </a>
+                  <p className="text-xs text-zinc-600 text-center mt-2">
+                    One-time. Secure checkout through Stripe.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={() => navigate("/optimize")}
+                    variant="outline"
+                    className="w-full py-3 text-sm font-semibold rounded-xl h-auto"
+                    style={{ borderColor: "rgba(16,185,129,0.4)", color: "#10B981", background: "rgba(16,185,129,0.06)" }}
+                  >
+                    Join the Waitlist
+                  </Button>
+                  <p className="text-xs text-zinc-600 text-center mt-2">Not yet available to buy. Waitlist members get first access at this price.</p>
+                </>
+              )}
             </div>
           </div>
 
