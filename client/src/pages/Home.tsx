@@ -21,36 +21,40 @@ const cliffData = [
   { magi: 100000, subsidy: 0, label: "$100k" },
 ];
 
-const personas = [
+const scenarios = [
   {
-    name: "Sarah K.",
-    age: 51,
-    title: "Retired Software Engineer",
-    location: "Austin, TX",
-    story: "I left my job at 51 with $1.8M saved. I thought I had everything figured out — until I realized my planned withdrawals would push me $4,000 over the subsidy cliff and cost me $18,000 in healthcare premiums. Vela showed me I could take $22,000 from my Roth instead of my IRA and save $16,400 that year alone.",
-    savings: "$16,400/yr",
+    label: "Retired at 51",
+    detail: "Single · $1.8M saved · 14 years to Medicare",
+    story:
+      "Planned withdrawals push MAGI $4,000 past the subsidy cliff, forfeiting the entire $18,000 subsidy. Taking $22,000 from a Roth instead of a traditional IRA keeps MAGI under the line — same spending, same lifestyle.",
+    savings: "$16,400",
     accentColor: "#007AFF",
   },
   {
-    name: "Marcus & Jen T.",
-    age: 47,
-    title: "FIRE at 45 — Both Retired",
-    location: "Denver, CO",
-    story: "We retired at 45 and have 18 years before Medicare. Our biggest fear was healthcare costs compounding over two decades. Vela's Roth conversion ladder showed us exactly how much to convert each year — building tax-free income for our 60s while keeping our ACA subsidies intact in our 40s and 50s.",
-    savings: "$14,800/yr",
+    label: "Still working, planning to leave at 45",
+    detail: "Married · Modeling an 18-year gap",
+    story:
+      "The question isn't this year's withdrawal — it's whether a Roth conversion ladder started now leaves enough accessible basis to draw on later without spiking MAGI through their 50s. Order of operations across two decades.",
+    savings: "$14,800",
     accentColor: "#A855F7",
   },
   {
-    name: "David R.",
-    age: 58,
-    title: "Former Small Business Owner",
-    location: "Nashville, TN",
-    story: "I sold my business and retired at 58. My accountant told me to just take IRA distributions — he had no idea about ACA subsidies. Vela showed me I was leaving $12,000 a year on the table. I now use a mix of taxable account sales and partial IRA withdrawals to stay right at 300% FPL.",
-    savings: "$12,000/yr",
+    label: "Retired at 45, both partners",
+    detail: "Married · 18 years to Medicare",
+    story:
+      "Healthcare costs compound over two decades, so each year's conversion amount has to clear taxable income for the year without pushing past the FPL threshold that governs the subsidy.",
+    savings: "$14,800",
     accentColor: "#06B6D4",
   },
+  {
+    label: "Sold a business, retired at 58",
+    detail: "Married · 7 years to Medicare",
+    story:
+      "Straight IRA distributions are the default advice and the expensive one. Blending taxable account sales with partial IRA withdrawals holds MAGI right at 300% FPL, where the subsidy is still substantial.",
+    savings: "$12,000",
+    accentColor: "#10B981",
+  },
 ];
-
 export default function Home() {
   const [, navigate] = useLocation();
   const [email, setEmail] = useState("");
@@ -194,7 +198,7 @@ export default function Home() {
           </h1>
 
           <p className="text-base sm:text-xl text-zinc-400 leading-relaxed mb-8 sm:mb-10 max-w-2xl">
-            Leave work before 65 — at 45 or at 62 — and one number sets your health insurance price until Medicare starts: your MAGI. Vela tells you which accounts to draw from, and how much, to bring it down. Worth <strong className="text-white">over $14,000 a year</strong> to the average household, every year of the gap.
+            Leave work before 65 — at 45 or at 62 — and one number sets your health insurance price until Medicare starts: your MAGI. Vela tells you which accounts to draw from, and how much, to bring it down. Worth <strong className="text-white">over $14,000 a year</strong> in our modeled scenarios, every year of the gap.
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -212,8 +216,8 @@ export default function Home() {
         {/* Stats Row */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 mt-14 sm:mt-20">
           {[
-            { value: "$14,200", label: "Average Annual Savings", sub: "Per household" },
-            { value: "94x", label: "Return on Investment", sub: "vs. $150/yr subscription" },
+            { value: "$14,200", label: "Modeled Annual Savings", sub: "Example household — see scenarios below" },
+            { value: "94x", label: "Against the Subscription", sub: "That saving vs. $150/yr" },
             { value: "Until 65", label: "The Coverage Gap", sub: "However many years you have to cover" },
           ].map((stat, i) => (
             <div
@@ -493,20 +497,20 @@ export default function Home() {
             className="inline-block text-xs font-bold tracking-widest uppercase mb-4 px-3 py-1 rounded-full"
             style={{ background: "rgba(6,182,212,0.1)", border: "1px solid rgba(6,182,212,0.3)", color: "#06B6D4" }}
           >
-            Real Stories
+            Example Scenarios
           </div>
           <h2
             className="text-3xl sm:text-4xl font-bold tracking-tight mb-4"
             style={{ fontFamily: "'Space Grotesk', sans-serif" }}
           >
-            People just like you are leaving work on their terms.
+            What this looks like in practice.
           </h2>
           <p className="text-zinc-400 text-base sm:text-lg max-w-xl mx-auto">
-            These are composite profiles based on real scenarios Vela is built to solve.
+            Illustrative scenarios showing how the optimizer reasons — not customers. Vela has not launched yet.
           </p>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-          {personas.map((p, i) => (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+          {scenarios.map((p, i) => (
             <div
               key={i}
               className="p-6 sm:p-7 rounded-2xl flex flex-col gap-4"
@@ -514,25 +518,25 @@ export default function Home() {
             >
               <div className="flex items-center gap-3">
                 <div
-                  className="w-11 h-11 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0"
+                  className="w-11 h-11 rounded-xl flex items-center justify-center text-sm font-bold flex-shrink-0"
                   style={{ background: `${p.accentColor}22`, color: p.accentColor, fontFamily: "'Space Grotesk', sans-serif" }}
                 >
-                  {p.name.charAt(0)}
+                  {String(i + 1).padStart(2, "0")}
                 </div>
                 <div>
-                  <div className="text-white font-semibold text-sm" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{p.name}</div>
-                  <div className="text-zinc-500 text-xs">{p.title} · {p.location}</div>
+                  <div className="text-white font-semibold text-sm" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>{p.label}</div>
+                  <div className="text-zinc-500 text-xs">{p.detail}</div>
                 </div>
               </div>
               <p className="text-zinc-300 text-sm leading-relaxed flex-1">
-                "{p.story}"
+                {p.story}
               </p>
               <div
                 className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold self-start"
                 style={{ background: `${p.accentColor}15`, color: p.accentColor }}
               >
-                <span>Saving</span>
-                <span>{p.savings}</span>
+                <span>Modeled</span>
+                <span>{p.savings}/yr</span>
               </div>
             </div>
           ))}
@@ -555,7 +559,7 @@ export default function Home() {
             Pays for itself in the first hour.
           </h2>
           <p className="text-zinc-400 text-base sm:text-lg max-w-xl mx-auto">
-            One optimization can save you $10,000–$20,000 in healthcare costs. Vela costs less than a single doctor visit.
+            In our modeled scenarios, one optimization is worth $10,000–$20,000 in healthcare costs. Vela costs less than a single doctor visit.
           </p>
         </div>
 
@@ -663,10 +667,10 @@ export default function Home() {
           className="mt-6 sm:mt-8 p-4 sm:p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-center gap-3 sm:gap-4 max-w-3xl mx-auto"
           style={{ background: "rgba(16,185,129,0.06)", border: "1px solid rgba(16,185,129,0.2)" }}
         >
-          <div className="text-2xl font-extrabold text-emerald-400 shrink-0" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>200x ROI</div>
+          <div className="text-2xl font-extrabold text-emerald-400 shrink-0" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>200x</div>
           <div className="text-sm text-zinc-400">
-            Average Vela user saves <strong className="text-white">$10,000+</strong> in their first year.
-            At $49, a Starter Report pays for itself <strong className="text-white">200 times over</strong> — in year one alone.
+            Our modeled scenarios save <strong className="text-white">$10,000+</strong> in a single year.
+            At $49, a Starter Report would pay for itself <strong className="text-white">200 times over</strong> against a saving that size.
           </div>
         </div>
       </section>
