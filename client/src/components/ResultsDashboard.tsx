@@ -128,7 +128,7 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
             >
               {roiMultiple}x
             </div>
-            <div className="text-zinc-500 text-sm mt-1">vs. $150/yr subscription</div>
+            <div className="text-zinc-500 text-sm mt-1">vs. {formatCurrency(result.subscriptionCost)}/yr subscription</div>
           </div>
           <div>
             <div className="text-xs font-semibold uppercase tracking-widest text-zinc-500 mb-2">Your Net Premium</div>
