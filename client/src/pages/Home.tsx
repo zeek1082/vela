@@ -182,7 +182,7 @@ export default function Home() {
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 sm:mb-8 text-xs sm:text-sm font-semibold"
             style={{ background: "rgba(0,122,255,0.1)", border: "1px solid rgba(0,122,255,0.3)", color: "#007AFF" }}>
             <span className="w-2 h-2 rounded-full bg-[#007AFF] animate-pulse" />
-            For Early Retirees & FIRE Community
+            For early retirees — and everyone planning to be one
           </div>
 
           <h1
@@ -201,7 +201,7 @@ export default function Home() {
           </h1>
 
           <p className="text-base sm:text-xl text-zinc-400 leading-relaxed mb-8 sm:mb-10 max-w-2xl">
-            Vela analyzes your retirement accounts, finds the optimal withdrawal strategy, and maximizes your ACA healthcare subsidies — saving the average early retiree over <strong className="text-white">$14,000 per year</strong>.
+            Leave work before 65 — at 45 or at 62 — and one number sets your health insurance price until Medicare starts: your MAGI. Vela tells you which accounts to draw from, and how much, to bring it down. Worth <strong className="text-white">over $14,000 a year</strong> to the average household, every year of the gap.
           </p>
 
           <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-4">
@@ -210,7 +210,7 @@ export default function Home() {
               className="flex items-center gap-2 text-base font-semibold rounded-full text-white border-0 h-auto w-full sm:w-auto justify-center"
               style={{ background: "linear-gradient(135deg, #007AFF, #A855F7)", paddingLeft: "6rem", paddingRight: "6rem", paddingTop: "1.25rem", paddingBottom: "1.25rem" }}
             >
-              Run My Optimization
+              See What I Would Save
               <ArrowRight className="w-4 h-4" />
             </Button>
           </div>
@@ -221,7 +221,7 @@ export default function Home() {
           {[
             { value: "$14,200", label: "Average Annual Savings", sub: "Per household" },
             { value: "94x", label: "Return on Investment", sub: "vs. $150/yr subscription" },
-            { value: "11M+", label: "Americans Eligible", sub: "Pre-Medicare retirees" },
+            { value: "Until 65", label: "The Coverage Gap", sub: "However many years you have to cover" },
           ].map((stat, i) => (
             <div
               key={i}
