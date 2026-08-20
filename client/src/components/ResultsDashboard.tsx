@@ -7,6 +7,19 @@ import {
   type UserProfile,
   formatCurrency,
 } from "@/lib/optimizer";
+import Explain from "@/components/Explain";
+import {
+  explainAccuracy,
+  explainBasisReturn,
+  explainCapitalGains,
+  explainCliff,
+  explainCsr,
+  explainIncomeChange,
+  explainRothWithdrawal,
+  explainSavings,
+  explainTarget,
+  explainTraditionalWithdrawal,
+} from "@/lib/explanations";
 import RothPipeline from "@/components/RothPipeline";
 import ActionCalendar from "@/components/ActionCalendar";
 
@@ -144,6 +157,10 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
                 : `per year (${formatCurrency(optimized.subsidy.netMonthlyPremium)}/mo)`}
             </div>
           </div>
+        </div>
+        <div className="relative z-10 mt-5 pt-4 flex flex-wrap gap-x-5 gap-y-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <Explain explanation={explainSavings(result)} color="#10B981" />
+          <Explain explanation={explainAccuracy()} color="#71717A" />
         </div>
       </div>
 
@@ -349,6 +366,7 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
               magiImpact: 0,
               color: "#10B981",
               note: "Tax-free, zero MAGI impact",
+              explanation: explainRothWithdrawal(result),
             },
             {
               label: "Brokerage Sale (Cost Basis Return)",
@@ -356,6 +374,7 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
               magiImpact: 0,
               color: "#10B981",
               note: "Returns your original investment, zero MAGI",
+              explanation: explainBasisReturn(result),
             },
             {
               label: "Brokerage Sale (Capital Gains)",
@@ -363,6 +382,7 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
               magiImpact: optimized.prescription.brokerageGainRealized,
               color: "#F59E0B",
               note: "Long-term capital gains — counts as MAGI",
+              explanation: explainCapitalGains(result),
             },
             {
               label: "Traditional IRA Withdrawal",
@@ -370,27 +390,33 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
               magiImpact: optimized.prescription.traditionalIRAWithdrawal,
               color: "#EF4444",
               note: "Ordinary income — counts as MAGI",
+              explanation: explainTraditionalWithdrawal(profile, result),
             },
           ].filter((item) => item.amount > 0).map((item) => (
             <div
               key={item.label}
-              className="flex items-center justify-between p-4 rounded-xl"
+              className="p-4 rounded-xl"
               style={{ background: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.04)" }}
             >
-              <div className="flex items-center gap-3">
-                <div className="w-2 h-2 rounded-full" style={{ background: item.color }} />
-                <div>
-                  <div className="text-sm font-semibold text-white">{item.label}</div>
-                  <div className="text-xs text-zinc-500">{item.note}</div>
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-2 h-2 rounded-full shrink-0" style={{ background: item.color }} />
+                  <div className="min-w-0">
+                    <div className="text-sm font-semibold text-white">{item.label}</div>
+                    <div className="text-xs text-zinc-500">{item.note}</div>
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-base font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
+                    {formatCurrency(item.amount)}
+                  </div>
+                  <div className="text-xs" style={{ color: item.magiImpact > 0 ? "#EF4444" : "#10B981" }}>
+                    {item.magiImpact > 0 ? `+${formatCurrency(item.magiImpact)} MAGI` : "No MAGI impact"}
+                  </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-base font-bold text-white" style={{ fontFamily: "'Space Grotesk', sans-serif" }}>
-                  {formatCurrency(item.amount)}
-                </div>
-                <div className="text-xs" style={{ color: item.magiImpact > 0 ? "#EF4444" : "#10B981" }}>
-                  {item.magiImpact > 0 ? `+${formatCurrency(item.magiImpact)} MAGI` : "No MAGI impact"}
-                </div>
+              <div className="mt-2 pl-5">
+                <Explain explanation={item.explanation} color={item.color} />
               </div>
             </div>
           ))}
@@ -433,6 +459,12 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
               {optimized.subsidy.fplPercentage.toFixed(0)}% FPL
             </div>
           </div>
+        </div>
+
+        <div className="mt-4 pt-4 flex flex-wrap gap-x-5 gap-y-2" style={{ borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+          <Explain explanation={explainTarget(profile, result)} color="#A855F7" />
+          <Explain explanation={explainCliff()} color="#EC4899" />
+          <Explain explanation={explainIncomeChange()} color="#71717A" />
         </div>
       </div>
 
@@ -490,6 +522,9 @@ export default function ResultsDashboard({ result, profile, onReset }: Props) {
             <div className="text-sm font-semibold text-emerald-400">Cost-Sharing Reduction (CSR) Eligible</div>
             <div className="text-xs text-zinc-400 mt-0.5">
               Your MAGI is below 250% FPL — you qualify for reduced deductibles and out-of-pocket maximums on Silver plans.
+            </div>
+            <div className="mt-2">
+              <Explain explanation={explainCsr(profile, result)} color="#10B981" />
             </div>
           </div>
         </div>

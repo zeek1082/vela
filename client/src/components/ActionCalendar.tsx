@@ -1,6 +1,8 @@
 import { CalendarDays, AlertTriangle, CircleDot, CalendarRange } from "lucide-react";
 import { formatCurrency, type OptimizationResult, type UserProfile } from "@/lib/optimizer";
 import { buildActionCalendar, buildPipeline, type CalendarUrgency } from "@/lib/pipeline";
+import Explain from "@/components/Explain";
+import { explainCalendar } from "@/lib/explanations";
 
 interface Props {
   profile: UserProfile;
@@ -39,10 +41,13 @@ export default function ActionCalendar({ profile, result }: Props) {
         <CalendarDays className="w-4 h-4" style={{ color: "#06B6D4" }} />
         <span className="text-sm font-semibold text-white">Your {startYear} Action Calendar</span>
       </div>
-      <p className="text-xs text-zinc-500 mb-5 max-w-2xl leading-relaxed">
+      <p className="text-xs text-zinc-500 mb-3 max-w-2xl leading-relaxed">
         MAGI is decided over a year, not in a single sitting. These are the dates that actually
         move it — with your own numbers written in.
       </p>
+      <div className="mb-5">
+        <Explain explanation={explainCalendar()} color="#06B6D4" />
+      </div>
 
       <div className="space-y-2.5">
         {items.map((item, i) => {

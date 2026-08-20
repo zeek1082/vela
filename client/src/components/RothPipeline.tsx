@@ -1,6 +1,8 @@
 import { TrendingUp, Lock, Info } from "lucide-react";
 import { formatCurrency, type OptimizationResult, type UserProfile } from "@/lib/optimizer";
 import { buildPipeline, MEDICARE_AGE } from "@/lib/pipeline";
+import Explain from "@/components/Explain";
+import { explainPipeline } from "@/lib/explanations";
 
 interface Props {
   profile: UserProfile;
@@ -52,11 +54,14 @@ export default function RothPipeline({ profile, result, horizon = 5 }: Props) {
           {pipeline.years.length}-year projection · {pipeline.yearsToMedicare} years to Medicare
         </div>
       </div>
-      <p className="text-xs text-zinc-500 mb-5 max-w-2xl leading-relaxed">
+      <p className="text-xs text-zinc-500 mb-3 max-w-2xl leading-relaxed">
         Each year there is room between the MAGI your withdrawals already generate and your
         subsidy target. Converting into that room moves money from Traditional to Roth without
         costing subsidy. Every conversion is accessible penalty-free five tax years later.
       </p>
+      <div className="mb-5">
+        <Explain explanation={explainPipeline(profile, pipeline)} color="#A855F7" />
+      </div>
 
       {/* Summary */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
